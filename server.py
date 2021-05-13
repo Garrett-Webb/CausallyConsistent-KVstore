@@ -23,7 +23,7 @@ from sys import argv
 import os
 kvstore = {}
 main_flag = False
-faddr = ""
+saddr = ""
 
 class requestHandler(http.server.BaseHTTPRequestHandler):
     def _set_headers(self, response_code):
@@ -32,18 +32,19 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        if (main_flag == False):
-            try:
-                r = requests.get('http://' + faddr + str(self.path), headers=self.headers)
-                self._set_headers(r.status_code)
-                self.wfile.write(r.content)
-            except:
-                self._set_headers(response_code=503)
-                response = bytes(json.dumps({"error":"Main instance is down","message":"Error in GET"}), 'utf-8')
-                self.wfile.write(response)
+        # try:
+        #     r = requests.get('http://' + saddr + str(self.path), headers=self.headers)
+        #     self._set_headers(r.status_code)
+        #     self.wfile.write(r.content)
+        # except:
+        #     self._set_headers(response_code=500)
+        #     response = bytes(json.dumps({"error":"Main instance is down","message":"Error in GET"}), 'utf-8')
+        #     self.wfile.write(response)
         
-        else:
-            if "/key-value-store/" in str(self.path):
+        if "/key-value-store-view/" in str(self.path):
+            print("key-value-store-view")
+
+        elif "/key-value-store/" in str(self.path):
                 keystr = str(self.path).split("/key-value-store/",1)[1]
                 if(len(keystr) > 0 and len(keystr) < 50):
                     if keystr in kvstore:
@@ -59,9 +60,10 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                     self._set_headers(response_code=400)
                     response = bytes(json.dumps({'error' : "Key not specified", 'message' : "Error in GET"}), 'utf-8')
                 self.wfile.write(response)
-            else:
-                #default 500 code to clean up loose ends
-                self._set_headers(response_code=500)
+        
+        else:
+            #default 500 code to clean up loose ends
+            self._set_headers(response_code=500)
         return
 
     def do_PUT(self):
@@ -69,7 +71,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
             self.data_string = self.rfile.read(int(self.headers['Content-Length']))
             data_send = json.loads(self.data_string)
             try:
-                r = requests.put('http://' + faddr + str(self.path), json=data_send, headers=self.headers)
+                r = requests.put('http://' + saddr + str(self.path), json=data_send, headers=self.headers)
                 self._set_headers(r.status_code)
                 self.wfile.write(r.content)
             except:
@@ -105,7 +107,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
     def do_DELETE(self):
         if (main_flag == False):
             try:
-                r = requests.delete('http://' + faddr + str(self.path), headers=self.headers)
+                r = requests.delete('http://' + saddr + str(self.path), headers=self.headers)
                 self._set_headers(r.status_code)
                 self.wfile.write(r.content)
             except:
@@ -130,12 +132,13 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                     self._set_headers(response_code=400)
                     response = bytes(json.dumps({'error' : "Key not specified", 'message' : "Error in DELETE"}), 'utf-8')
                 self.wfile.write(response)
+            
             else:
                 #default 500 code to clean up loose ends
                 self._set_headers(response_code=500)
         return
 
-def run(server_class=http.server.HTTPServer, handler_class=requestHandler, addr='', port=8085):
+def run(server_class=http.server.HTTPServer, handler_class=requestHandler, addr='0.0.0.0', port=8085):
     # this function initializes and runs the server on the class defined above
     server_address = (addr, port)
     httpd = server_class(server_address, handler_class)
@@ -150,9 +153,12 @@ if __name__ == '__main__':
     d_ip = ''
     d_port = 8085
     try:
-        faddr = os.environ['SOCKET_ADDRESS']
-        if len(faddr) > 0:
-            print("SOCKET_ADDRESS: " + str(faddr))
+        saddr = os.environ['SOCKET_ADDRESS']
+        if len(saddr) > 0:
+            print("SOCKET_ADDRESS: " + str(saddr))
+        views = os.environ['VIEW']
+        if len(saddr) > 0:
+            print("VIEWS: " + str(views))
 
     except:
         print("main instance")
