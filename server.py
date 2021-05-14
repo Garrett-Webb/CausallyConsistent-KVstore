@@ -24,6 +24,7 @@ import os
 kvstore = {}
 main_flag = False
 saddr = ""
+views = ""
 
 class requestHandler(http.server.BaseHTTPRequestHandler):
     def _set_headers(self, response_code):
@@ -40,9 +41,12 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
         #     self._set_headers(response_code=500)
         #     response = bytes(json.dumps({"error":"Main instance is down","message":"Error in GET"}), 'utf-8')
         #     self.wfile.write(response)
-        
-        if "/key-value-store-view/" in str(self.path):
+        print("GET REQUEST RECEIVED")
+
+        if "/key-value-store-view" in str(self.path):
             print("key-value-store-view")
+            self._set_headers(response_code=200)
+            response = bytes(json.dumps({"message" : "View retrieved successfully", "view" : views }), 'utf-8')
 
         elif "/key-value-store/" in str(self.path):
                 keystr = str(self.path).split("/key-value-store/",1)[1]
@@ -105,37 +109,40 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
         return
     
     def do_DELETE(self):
-        if (main_flag == False):
-            try:
-                r = requests.delete('http://' + saddr + str(self.path), headers=self.headers)
-                self._set_headers(r.status_code)
-                self.wfile.write(r.content)
-            except:
-                self._set_headers(response_code=503)
-                response = bytes(json.dumps({"error":"Main instance is down","message":"Error in DELETE"}), 'utf-8')
-                self.wfile.write(response)
+        # if (main_flag == False):
+        #     try:
+        #         r = requests.delete('http://' + saddr + str(self.path), headers=self.headers)
+        #         self._set_headers(r.status_code)
+        #         self.wfile.write(r.content)
+        #     except:
+        #         self._set_headers(response_code=503)
+        #         response = bytes(json.dumps({"error":"Main instance is down","message":"Error in DELETE"}), 'utf-8')
+        #         self.wfile.write(response)
+        # else:
+        if "/key-value-store-view/" in str(self.path):
+            print("PATH: %s", str(self.path))
+
+        if "/key-value-store/" in str(self.path):
+            keystr = str(self.path).split("/key-value-store/",1)[1]
+            if(len(keystr) > 0 and len(keystr) < 50):
+                if keystr in kvstore:
+                    del kvstore[keystr]
+                    self._set_headers(response_code=200)
+                    response = bytes(json.dumps({"doesExist" : True, "message" : "Deleted successfully"}), 'utf-8')
+                else:
+                    self._set_headers(response_code=404)
+                    response = bytes(json.dumps({"doesExist" : False, "error" : "Key does not exist", "message" : "Error in DELETE"}), 'utf-8')
+            elif (len(keystr) > 50):
+                self._set_headers(response_code=400)
+                response = bytes(json.dumps({'error' : "Key is too long", 'message' : "Error in DELETE"}), 'utf-8')
+            elif(len(keystr) == 0):
+                self._set_headers(response_code=400)
+                response = bytes(json.dumps({'error' : "Key not specified", 'message' : "Error in DELETE"}), 'utf-8')
+            self.wfile.write(response)
+        
         else:
-            if "/key-value-store/" in str(self.path):
-                keystr = str(self.path).split("/key-value-store/",1)[1]
-                if(len(keystr) > 0 and len(keystr) < 50):
-                    if keystr in kvstore:
-                        del kvstore[keystr]
-                        self._set_headers(response_code=200)
-                        response = bytes(json.dumps({"doesExist" : True, "message" : "Deleted successfully"}), 'utf-8')
-                    else:
-                        self._set_headers(response_code=404)
-                        response = bytes(json.dumps({"doesExist" : False, "error" : "Key does not exist", "message" : "Error in DELETE"}), 'utf-8')
-                elif (len(keystr) > 50):
-                    self._set_headers(response_code=400)
-                    response = bytes(json.dumps({'error' : "Key is too long", 'message' : "Error in DELETE"}), 'utf-8')
-                elif(len(keystr) == 0):
-                    self._set_headers(response_code=400)
-                    response = bytes(json.dumps({'error' : "Key not specified", 'message' : "Error in DELETE"}), 'utf-8')
-                self.wfile.write(response)
-            
-            else:
-                #default 500 code to clean up loose ends
-                self._set_headers(response_code=500)
+            #default 500 code to clean up loose ends
+            self._set_headers(response_code=500)
         return
 
 def run(server_class=http.server.HTTPServer, handler_class=requestHandler, addr='0.0.0.0', port=8085):
