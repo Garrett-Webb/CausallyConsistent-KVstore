@@ -132,7 +132,10 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
         #         self.wfile.write(response)
         # else:
         if "/key-value-store-view/" in str(self.path):
-            print("PATH: %s", str(self.path))
+            self.data_string = self.rfile.read(int(self.headers['socket-address']))
+            data = json.loads(self.data_string)
+            view_list.remove(data)
+            print("View_list: "view_list)
 
         if "/key-value-store/" in str(self.path):
             keystr = str(self.path).split("/key-value-store/",1)[1]
