@@ -39,16 +39,13 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
         if "/key-value-store-view" in str(self.path):
             views_list = views.split(",")
             print("key-value-store-view")
-            #print("view[0]: http://" + views_list[0] + str(self.path))
             down_instances = []
 
             for x in views_list:
                 try:
                     if x != saddr:
                         r = requests.get('http://' + x + "/key-value-store/check", headers=self.headers)
-                        #self._set_headers(r.status_code)
-                        #self.wfile.write(r.content)
-                except: #
+                except:
                     down_instances.append(x)
             print("Down Instances:\n")
             print(down_instances)
@@ -131,13 +128,18 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
         #         response = bytes(json.dumps({"error":"Main instance is down","message":"Error in DELETE"}), 'utf-8')
         #         self.wfile.write(response)
         # else:
-        if "/key-value-store-view/" in str(self.path):
-            self.data_string = self.rfile.read(int(self.headers['socket-address']))
-            data = json.loads(self.data_string)
-            views_list.remove(data)
+        if "/key-value-store-view" in str(self.path) and self.client_address in views_list:
+            print("deleting key value store")
+            self.data_string = self.rfile.read(int(self.headers['Content-Length']))
+            new_string = self.data_string.decode()
+            new_string = new_string.replace('{', '')
+            new_string = new_string.replace('}', '')
+            a,b = new_string.split(": ")
+            print("View_list (before delete): ", views_list)
+            views_list.remove(b)
             print("View_list: ", views_list)
 
-        if "/key-value-store/" in str(self.path):
+        elif "/key-value-store/" in str(self.path):
             keystr = str(self.path).split("/key-value-store/",1)[1]
             if(len(keystr) > 0 and len(keystr) < 50):
                 if keystr in kvstore:
@@ -179,6 +181,7 @@ if __name__ == '__main__':
         if len(saddr) > 0:
             print("SOCKET_ADDRESS: " + str(saddr))
         views = os.environ['VIEW']
+        views_list = views.split(",")
         if len(saddr) > 0:
             print("VIEWS: " + str(views))
 
