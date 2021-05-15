@@ -90,6 +90,8 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
             #in progress
             new_instance = str(self.path).split("://",1)[1] 
             new_instance = new_instance.split('/key')[0]
+            # check if formatting is correct
+            print("NEW INSTANCE: " + str(new_instance))
             views_list.append(new_instance)
 
         else:
