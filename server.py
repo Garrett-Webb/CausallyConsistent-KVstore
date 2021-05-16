@@ -135,6 +135,11 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
             new_string = new_string.replace('{', '')
             new_string = new_string.replace('}', '')
             a,b = new_string.split(": ")
+            if b not in views_list:
+                self._set_headers(response_code=404)
+                response = bytes(json.dumps({"error" : "Socket address does not exist in the view", "message" : "Error in DELETE"}), 'utf-8')
+                self.wfile.write(response)
+                return
             print("View_list (before delete): ", views_list)
             views_list.remove(b)
             print("View_list: ", views_list)
