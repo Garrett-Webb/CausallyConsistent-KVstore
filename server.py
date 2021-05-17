@@ -83,7 +83,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
         return
 
     def do_PUT(self):
-        if "/key-value-store-view" in str(self.path):
+        if "/key-value-store-view" in str(self.path) and self.client_address[0] + ":8085" in views_list: # self.client_address[0] = ip, view_list = ip + :port:
             #in progress
             new_instance = str(self.path).split("://",1)[1] 
             new_instance = new_instance.split('/key')[0]
