@@ -36,7 +36,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         print("GET REQUEST RECEIVED")
 
-        if "/key-value-store-view" in str(self.path):
+        if "/key-value-store-view" in str(self.path) and self.client_address[0] + ":8085" in views_list: # self.client_address[0] = ip, view_list = ip + :port:
             views_list = views.split(",")
             print("key-value-store-view")
             down_instances = []
@@ -118,23 +118,17 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
         return
     
     def do_DELETE(self):
-        # if (main_flag == False):
-        #     try:
-        #         r = requests.delete('http://' + saddr + str(self.path), headers=self.headers)
-        #         self._set_headers(r.status_code)
-        #         self.wfile.write(r.content)
-        #     except:
-        #         self._set_headers(response_code=503)
-        #         response = bytes(json.dumps({"error":"Main instance is down","message":"Error in DELETE"}), 'utf-8')
-        #         self.wfile.write(response)
-        # else:
-        if "/key-value-store-view" in str(self.path) and self.client_address in views_list:
+
+        print(self.client_address[0])
+        print(views_list[2])
+        if "/key-value-store-view" in str(self.path) and self.client_address[0] + ":8085" in views_list: # self.client_address[0] = ip, view_list = ip + :port
             print("deleting key value store")
             self.data_string = self.rfile.read(int(self.headers['Content-Length']))
             new_string = self.data_string.decode()
             new_string = new_string.replace('{', '')
             new_string = new_string.replace('}', '')
             a,b = new_string.split(": ")
+            print(b)
             if b not in views_list:
                 self._set_headers(response_code=404)
                 response = bytes(json.dumps({"error" : "Socket address does not exist in the view", "message" : "Error in DELETE"}), 'utf-8')
@@ -143,6 +137,9 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
             print("View_list (before delete): ", views_list)
             views_list.remove(b)
             print("View_list: ", views_list)
+            self._set_headers(response_code=200)
+            response = bytes(json.dumps({'message' : "Replica deleted successfully from the view"}), 'utf-8')
+            self.wfile.write(response)
 
         elif "/key-value-store/" in str(self.path):
             keystr = str(self.path).split("/key-value-store/",1)[1]
