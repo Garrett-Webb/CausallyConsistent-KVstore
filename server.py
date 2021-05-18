@@ -36,8 +36,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         print("GET REQUEST RECEIVED")
 
-        if "/key-value-store-view" in str(self.path) and self.client_address[0] + ":8085" in views_list: # self.client_address[0] = ip, view_list = ip + :port:
-            views_list = views.split(",")
+        if "/key-value-store-view" in str(self.path) and self.client_address[0] + ":8085" in views_list: # self.client_address[0] = ip, view_list = ip + :port
             print("key-value-store-view")
             down_instances = []
 
@@ -47,18 +46,21 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                         r = requests.get('http://' + x + "/key-value-store/check", headers=self.headers)
                 except:
                     down_instances.append(x)
+                    views_list.remove(x)
             print("Down Instances:\n")
             print(down_instances)
-            
-            #for x in views_list:
-            #    if x not in down_instances:
-            #        for y in down_instances:
-            #            r = requests.delete('http://' + x + str(self.path) + "/"+ y, headers=self.headers)
-            #            self._set_headers(r.status_code)
-            #            self.wfile.write(r.content)
+            print("Views List:\n")
+            print(views_list)
+
+
+            for x in views_list:
+              if (x not in down_instances) and (x != saddr):
+                  for y in down_instances:
+                      r = requests.delete('http://' + x + "/broadcast-view-delete", allow_redirects=False, headers=self.headers, json={"socket-address" : y})
 
             self._set_headers(response_code=200)
-            response = bytes(json.dumps({"message" : "View retrieved successfully", "view" : views }), 'utf-8')
+            response = bytes(json.dumps({"message" : "View retrieved successfully", "view" : ','.join(views_list) }), 'utf-8')
+            self.wfile.write(response)
 
         elif "/key-value-store/" in str(self.path):
                 keystr = str(self.path).split("/key-value-store/",1)[1]
@@ -83,13 +85,34 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
         return
 
     def do_PUT(self):
-        if "/key-value-store-view" in str(self.path) and self.client_address[0] + ":8085" in views_list: # self.client_address[0] = ip, view_list = ip + :port:
+        if "/key-value-store-view" in str(self.path) and self.client_address[0] + ":8085" in views_list: # self.client_address[0] = ip, view_list = ip + :port
             #in progress
-            new_instance = str(self.path).split("://",1)[1] 
-            new_instance = new_instance.split('/key')[0]
-            # check if formatting is correct
+            print("Content length" + self.headers['Content-Length'])
+            self.data_string = self.rfile.read(int(self.headers['Content-Length']))
+            new_string = self.data_string.decode()
+            new_string = new_string.replace('{', '')
+            new_string = new_string.replace('}', '')
+            new_instance = new_string.split(": ")[1]
             print("NEW INSTANCE: " + str(new_instance))
-            views_list.append(new_instance)
+
+            if new_instance not in views_list:
+                views_list.append(new_instance)
+                print(views_list)
+
+                #send PUT to all replicas
+
+                self._set_headers(response_code=201) 
+                response = bytes(json.dumps({'message' : "Replica added successfully to the view"}), 'utf-8')
+                self.wfile.write(response)
+            else:
+                #error
+                self._set_headers(response_code=404)
+                response = bytes(json.dumps({'error' : "Socket address already exists in the view", "message" : "Error in PUT"}), 'utf-8')
+                self.wfile.write(response)
+                
+            
+
+            
 
         else:
             if "/key-value-store/" in str(self.path):
@@ -120,24 +143,72 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
     def do_DELETE(self):
 
         print(self.client_address[0])
-        print(views_list[2])
-        if "/key-value-store-view" in str(self.path) and self.client_address[0] + ":8085" in views_list: # self.client_address[0] = ip, view_list = ip + :port
-            print("deleting key value store")
+        # print(views_list[2])
+
+        view_list_str = []
+        for x in views_list:
+            view_list_str.append(str(x))
+
+        if "/broadcast-view-delete" in str(self.path):
+            print("broadcasted delete: ")
             self.data_string = self.rfile.read(int(self.headers['Content-Length']))
             new_string = self.data_string.decode()
             new_string = new_string.replace('{', '')
             new_string = new_string.replace('}', '')
-            a,b = new_string.split(": ")
-            print(b)
-            if b not in views_list:
+            new_string = new_string.replace('"', '')
+            delete_replica = new_string.split(": ")[1]
+            print("View_list (before delete): ")
+            print(view_list_str)
+
+            if delete_replica.strip() not in view_list_str:
+                print("view not in views_list")
+                self._set_headers(response_code=200)
+                response = bytes(json.dumps({"bogus" : "doesnt matter", "message" : "done"}), 'utf-8')
+                self.wfile.write(response)
+                return
+
+            views_list.remove(delete_replica)
+            print("View_list (after delete): ")
+            print(views_list)
+            
+            self._set_headers(response_code=200)
+            response = bytes(json.dumps({"bogus" : "doesnt matter", "message" : "done"}), 'utf-8')
+            self.wfile.write(response)
+
+        elif "/key-value-store-view" in str(self.path): # self.client_address[0] = ip, view_list = ip + :port
+            print("view delete: ")
+            self.data_string = self.rfile.read(int(self.headers['Content-Length']))
+            new_string = self.data_string.decode()
+            new_string = new_string.replace('{', '')
+            new_string = new_string.replace('}', '')
+            delete_replica = new_string.split(": ")[1]
+            print(delete_replica)
+            if delete_replica not in views_list:
                 self._set_headers(response_code=404)
                 response = bytes(json.dumps({"error" : "Socket address does not exist in the view", "message" : "Error in DELETE"}), 'utf-8')
                 self.wfile.write(response)
                 return
             print("View_list (before delete): ", views_list)
-            views_list.remove(b)
+            views_list.remove(delete_replica)
             print("View_list: ", views_list)
+
+            #send delete to all other replicas in the view lsit
+            for x in views_list:
+                if x != saddr:
+                    try:
+                        print( "TRY: deleting ", str(delete_replica), " at ", str(x) )
+                        r = requests.delete('http://' + x + "/broadcast-view-delete", allow_redirects=False, headers=self.headers, json={"socket-address" : delete_replica})
+                    except:
+                        for y in views_list:
+                            print( "EXCEPT: broadcasting delete of ", str(x), " at ", str(y) )  
+                            if (self.client_address[0] + ":8085" != y) and (x != y):
+                                r = requests.delete('http://' + y + "/broadcast-view-delete" , allow_redirects = False, headers=self.headers, json={"socket-address" : delete_replica})
+                else:
+                    print("Cannot send request to self")
+                print(views_list)
+                
             self._set_headers(response_code=200)
+            self.end_headers()
             response = bytes(json.dumps({'message' : "Replica deleted successfully from the view"}), 'utf-8')
             self.wfile.write(response)
 
