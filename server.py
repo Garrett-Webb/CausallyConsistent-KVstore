@@ -36,7 +36,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         print("GET REQUEST RECEIVED")
 
-        if "/key-value-store-view" in str(self.path) and self.client_address[0] + ":8085" in views_list: # self.client_address[0] = ip, view_list = ip + :port
+        if "/key-value-store-view" in str(self.path):#and self.client_address[0] + ":8085" in views_list: # self.client_address[0] = ip, view_list = ip + :port
             print("key-value-store-view")
             down_instances = []
 
@@ -59,7 +59,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                       r = requests.delete('http://' + x + "/broadcast-view-delete", allow_redirects=False, headers=self.headers, json={"socket-address" : y})
 
             self._set_headers(response_code=200)
-            response = bytes(json.dumps({"message" : "View retrieved successfully", "view" : ','.join(views_list) }), 'utf-8')
+            response = bytes(json.dumps({"message" : "View retrieved successfully", "view" : ','.join(views_list), "causal-metadata":"" }), 'utf-8')
             self.wfile.write(response)
 
         elif "/key-value-store/" in str(self.path):
@@ -67,16 +67,16 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                 if(len(keystr) > 0 and len(keystr) < 50):
                     if keystr in kvstore:
                         self._set_headers(response_code=200)
-                        response = bytes(json.dumps({"doesExist" : True, "message" : "Retrieved successfully", "value" : kvstore[keystr]}), 'utf-8')
+                        response = bytes(json.dumps({"doesExist" : True, "message" : "Retrieved successfully", "value" : kvstore[keystr], "causal-metadata":''}), 'utf-8')
                     else:
                         self._set_headers(response_code=404)
-                        response = bytes(json.dumps({"doesExist" : False, "error" : "Key does not exist", "message" : "Error in GET"}), 'utf-8')
+                        response = bytes(json.dumps({"doesExist" : False, "error" : "Key does not exist", "message" : "Error in GET", "causal-metadata":""}), 'utf-8')
                 elif (len(keystr) > 50):
                     self._set_headers(response_code=400)
-                    response = bytes(json.dumps({'error' : "Key is too long", 'message' : "Error in GET"}), 'utf-8')
+                    response = bytes(json.dumps({'error' : "Key is too long", 'message' : "Error in GET", "causal-metadata":""}), 'utf-8')
                 elif(len(keystr) == 0):
                     self._set_headers(response_code=400)
-                    response = bytes(json.dumps({'error' : "Key not specified", 'message' : "Error in GET"}), 'utf-8')
+                    response = bytes(json.dumps({'error' : "Key not specified", 'message' : "Error in GET", "causal-metadata":""}), 'utf-8')
                 self.wfile.write(response)
         
         else:
@@ -99,7 +99,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
             if new_string in views_list:
                 print("view already in views_list")
                 self._set_headers(response_code=404)
-                response = bytes(json.dumps({"bogus" : "doesnt matter", "message" : "done"}), 'utf-8')
+                response = bytes(json.dumps({"bogus" : "doesnt matter", "message" : "done", "causal-metadata":""}), 'utf-8')
                 self.wfile.write(response)
                 return
 
@@ -108,11 +108,11 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
             print(views_list)
             
             self._set_headers(response_code=200)
-            response = bytes(json.dumps({"bogus" : "doesnt matter", "message" : "done"}), 'utf-8')
+            response = bytes(json.dumps({"bogus" : "doesnt matter", "message" : "done", "causal-metadata":""}), 'utf-8')
             self.wfile.write(response)
             return
 
-        elif "/key-value-store-view" in str(self.path) and self.client_address[0] + ":8085" in views_list: # self.client_address[0] = ip, view_list = ip + :port
+        elif "/key-value-store-view" in str(self.path) #and self.client_address[0] + ":8085" in views_list: # self.client_address[0] = ip, view_list = ip + :port
             #in progress
             print("Content length" + self.headers['Content-Length'])
             self.data_string = self.rfile.read(int(self.headers['Content-Length']))
@@ -142,12 +142,12 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                 views_list.append(new_instance)
                 print("Views List (after PUT)", views_list)
                 self._set_headers(response_code=201) 
-                response = bytes(json.dumps({'message' : "Replica added successfully to the view"}), 'utf-8')
+                response = bytes(json.dumps({'message' : "Replica added successfully to the view", "causal-metadata":""}), 'utf-8')
                 self.wfile.write(response)
             else:
                 #error
                 self._set_headers(response_code=404)
-                response = bytes(json.dumps({'error' : "Socket address already exists in the view", "message" : "Error in PUT"}), 'utf-8')
+                response = bytes(json.dumps({'error' : "Socket address already exists in the view", "message" : "Error in PUT", "causal-metadata":""}), 'utf-8')
                 self.wfile.write(response)
                 
             
@@ -162,18 +162,18 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                     data = json.loads(self.data_string)
                     if "value" not in data:
                         self._set_headers(response_code=400)
-                        response = bytes(json.dumps({'error' : "Value is missing", 'message' : "Error in PUT"}), 'utf-8')
+                        response = bytes(json.dumps({'error' : "Value is missing", 'message' : "Error in PUT", "causal-metadata":""}), 'utf-8')
                     elif keystr in kvstore:
                         kvstore[keystr] = data["value"]
                         self._set_headers(response_code=200)
-                        response = bytes(json.dumps({'message' : "Updated successfully", 'replaced' :True}), 'utf-8')
+                        response = bytes(json.dumps({'message' : "Updated successfully", 'replaced' :True, "causal-metadata":""}), 'utf-8')
                     else:
                         kvstore[keystr] = data["value"]
                         self._set_headers(response_code=201)
-                        response = bytes(json.dumps({'message' : "Added successfully", 'replaced' :False}), 'utf-8')
+                        response = bytes(json.dumps({'message' : "Added successfully", 'replaced' :False, "causal-metadata":""}), 'utf-8')
                 elif (len(keystr) > 50):
                     self._set_headers(response_code=400)
-                    response = bytes(json.dumps({'error' : "Key is too long", 'message' : "Error in PUT"}), 'utf-8')
+                    response = bytes(json.dumps({'error' : "Key is too long", 'message' : "Error in PUT", "causal-metadata":""}), 'utf-8')
                 
                 self.wfile.write(response)
             else:
@@ -203,7 +203,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
             if delete_replica.strip() not in view_list_str:
                 print("view not in views_list")
                 self._set_headers(response_code=200)
-                response = bytes(json.dumps({"bogus" : "doesnt matter", "message" : "done"}), 'utf-8')
+                response = bytes(json.dumps({"bogus" : "doesnt matter", "message" : "done", "causal-metadata":""}), 'utf-8')
                 self.wfile.write(response)
                 return
 
@@ -212,7 +212,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
             print(views_list)
             
             self._set_headers(response_code=200)
-            response = bytes(json.dumps({"bogus" : "doesnt matter", "message" : "done"}), 'utf-8')
+            response = bytes(json.dumps({"bogus" : "doesnt matter", "message" : "done", "causal-metadata":""}), 'utf-8')
             self.wfile.write(response)
 
         elif "/key-value-store-view" in str(self.path): # self.client_address[0] = ip, view_list = ip + :port
@@ -225,7 +225,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
             print(delete_replica)
             if delete_replica not in views_list:
                 self._set_headers(response_code=404)
-                response = bytes(json.dumps({"error" : "Socket address does not exist in the view", "message" : "Error in DELETE"}), 'utf-8')
+                response = bytes(json.dumps({"error" : "Socket address does not exist in the view", "message" : "Error in DELETE", "causal-metadata":""}), 'utf-8')
                 self.wfile.write(response)
                 return
             print("View_list (before delete): ", views_list)
@@ -249,7 +249,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                 
             self._set_headers(response_code=200)
             self.end_headers()
-            response = bytes(json.dumps({'message' : "Replica deleted successfully from the view"}), 'utf-8')
+            response = bytes(json.dumps({'message' : "Replica deleted successfully from the view", "causal-metadata":""}), 'utf-8')
             self.wfile.write(response)
 
         elif "/key-value-store/" in str(self.path):
@@ -258,16 +258,16 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                 if keystr in kvstore:
                     del kvstore[keystr]
                     self._set_headers(response_code=200)
-                    response = bytes(json.dumps({"doesExist" : True, "message" : "Deleted successfully"}), 'utf-8')
+                    response = bytes(json.dumps({"doesExist" : True, "message" : "Deleted successfully", "causal-metadata":""}), 'utf-8')
                 else:
                     self._set_headers(response_code=404)
-                    response = bytes(json.dumps({"doesExist" : False, "error" : "Key does not exist", "message" : "Error in DELETE"}), 'utf-8')
+                    response = bytes(json.dumps({"doesExist" : False, "error" : "Key does not exist", "message" : "Error in DELETE", "causal-metadata":""}), 'utf-8')
             elif (len(keystr) > 50):
                 self._set_headers(response_code=400)
-                response = bytes(json.dumps({'error' : "Key is too long", 'message' : "Error in DELETE"}), 'utf-8')
+                response = bytes(json.dumps({'error' : "Key is too long", 'message' : "Error in DELETE", "causal-metadata":""}), 'utf-8')
             elif(len(keystr) == 0):
                 self._set_headers(response_code=400)
-                response = bytes(json.dumps({'error' : "Key not specified", 'message' : "Error in DELETE"}), 'utf-8')
+                response = bytes(json.dumps({'error' : "Key not specified", 'message' : "Error in DELETE", "causal-metadata":""}), 'utf-8')
             self.wfile.write(response)
         
         else:
