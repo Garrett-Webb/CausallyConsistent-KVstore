@@ -34,49 +34,39 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        print("GET REQUEST RECEIVED")
+        print("\n[+] recieved GET request from: " + str(self.client_address[0]) + " to path: " + str(self.path) + "\n")
 
         if "/key-value-store-view" in str(self.path):#and self.client_address[0] + ":8085" in views_list: # self.client_address[0] = ip, view_list = ip + :port
-            print("key-value-store-view")
             down_instances = []
-
             for x in views_list:
                 try:
                     if x != saddr:
-                        r = requests.get('http://' + x + "/key-value-store/check", timeout=3, headers=self.headers)
+                        # send a dummy get request to each instance in the view, dont care about response as long as it returns something
+                        r = requests.get('http://' + x + "/key-value-store/check", timeout=2, headers=self.headers)
                 except:
+                    # if the dummy request errors, that means the instance is down. add it to list and remove it from the local views list.
                     down_instances.append(x)
                     views_list.remove(x)
-            print("Down Instances:\n")
-            print(down_instances)
-            print("Views List:\n")
-            print(views_list)
 
-
+            #broadcast view delete of down instances to the ones who arent down
             for x in views_list:
                 if (x not in down_instances) and (x != saddr):
                     for y in down_instances:
                         try:
-                            r = requests.delete('http://' + x + "/broadcast-view-delete", timeout=3, allow_redirects=False, headers=self.headers, json={"socket-address" : y})
+                            # broadcast a view delete to each downed instance
+                            r = requests.delete('http://' + x + "/broadcast-view-delete", timeout=2, allow_redirects=False, headers=self.headers, json={"socket-address" : y})
                         except:
-                            print("instance ", + y + " is also down lol")
-
+                            print("instance ", + y + " is either down or busy")
+            
+            #send response
             self._set_headers(response_code=200)
             response = bytes(json.dumps({"message" : "View retrieved successfully", "view" : ','.join(views_list), "causal-metadata":"" }), 'utf-8')
             self.wfile.write(response)
-
             
         elif "/update-kv-store" in str(self.path):#and self.client_address[0] + ":8085" in views_list: # self.client_address[0] = ip, view_list = ip + :port
-            print("update-kv-store")
-            
-            json_thing = json.dumps(kvstore)
-            print(json_thing)
-            
-
             self._set_headers(response_code=200)
             response = bytes(json.dumps(kvstore), 'utf-8')
             self.wfile.write(response)
-        
         
         elif "/key-value-store/" in str(self.path):
                 keystr = str(self.path).split("/key-value-store/",1)[1]
@@ -98,30 +88,33 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
         else:
             #default 500 code to clean up loose ends
             self._set_headers(response_code=500)
+
         return
 
     def do_PUT(self):
+        print("\n[+] recieved PUT request from: " + str(self.client_address[0]) + " to path: " + str(self.path) + "\n")
+
         if "/broadcast-view-put" in str(self.path):
-            print("broadcasted PUT: ")
+            #print("broadcasted PUT: ")
             self.data_string = self.rfile.read(int(self.headers['Content-Length']))
             new_string = self.data_string.decode()
             new_string = new_string.replace('{', '')
             new_string = new_string.replace('}', '')
             new_string = new_string.replace('"', '')
             new_string = new_string.split(": ")[1]
-            print("View_list (before put): ")
-            print(views_list)
+            #print("View_list (before put): ")
+            #print(views_list)
 
             if new_string in views_list:
-                print("view already in views_list")
+                print("    view already in views_list")
                 self._set_headers(response_code=404)
                 response = bytes(json.dumps({"bogus" : "doesnt matter", "message" : "done", "causal-metadata":"test"}), 'utf-8')
                 self.wfile.write(response)
                 return
 
             views_list.append(new_string)
-            print("View_list (after put): ")
-            print(views_list)
+            #print("View_list (after put): ")
+            #print(views_list)
             
             self._set_headers(response_code=200)
             response = bytes(json.dumps({"bogus" : "doesnt matter", "message" : "done", "causal-metadata":"test"}), 'utf-8')
@@ -130,33 +123,32 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
         
         elif "/key-value-store-view" in str(self.path): #and self.client_address[0] + ":8085" in views_list: # self.client_address[0] = ip, view_list = ip + :port
             #in progress
-            print("Content length" + self.headers['Content-Length'])
+            #print("Content length" + self.headers['Content-Length'])
             self.data_string = self.rfile.read(int(self.headers['Content-Length']))
             new_string = self.data_string.decode()
             new_string = new_string.replace('{', '')
             new_string = new_string.replace('}', '')
             new_instance = new_string.split(": ")[1]
-            print("NEW INSTANCE: " + str(new_instance))
+            print("    new instance to add into view: " + str(new_instance))
 
             if new_instance not in views_list:
-                print("Views List (before PUT)", views_list)
-
-                #send PUT to all replicas
+                # print("Views List (before PUT)", views_list)
+                # send PUT to all replicas
                 for x in views_list:
                     if (x != saddr):
                         try:
-                            print("TRY: broadcasting PUT value ", new_instance, "to ", x)
-                            r = requests.put('http://' + x + "/broadcast-view-put", timeout=3, allow_redirects=False, headers=self.headers, json={"socket-address" : new_instance})
+                            print("    TRY: broadcasting PUT value ", new_instance, "to ", x)
+                            r = requests.put('http://' + x + "/broadcast-view-put", timeout=2, allow_redirects=False, headers=self.headers, json={"socket-address" : new_instance})
                         except:
-                            print("EXCEPT: removing PUT value ", x, "from ", saddr)
+                            print("    EXCEPT: broadcasting DELETE view ", x)
                             views_list.remove(x)
                             for y in views_list:
-                                print("Broadcasting DELETE downed instance ", x, "to ", y)
+                                print("    Broadcasting DELETE downed instance ", x, "to ", y)
                                 if (y != saddr) and (y != x):
                                     try:
-                                        r = requests.delete('http://' + y + "/broadcast-view-delete", timeout=3, allow_redirects=False, headers=self.headers, json={"socket-address" : x})
+                                        r = requests.delete('http://' + y + "/broadcast-view-delete", timeout=2, allow_redirects=False, headers=self.headers, json={"socket-address" : x})
                                     except:
-                                        print("broadcasting instance is down")
+                                        print("    broadcast instance is down or busy")
 
                 views_list.append(new_instance)
                 print("Views List (after PUT)", views_list)
