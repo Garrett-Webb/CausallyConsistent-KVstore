@@ -162,7 +162,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(response)
       
         elif "/broadcast-key-put/" in str(self.path):
-            print("in broadcast key put \n")
+            # print("in broadcast key put \n")
             keystr = str(self.path).split("/broadcast-key-put/",1)[1]
             if(len(keystr) > 0 and len(keystr) < 50):
                 self.data_string = self.rfile.read(int(self.headers['Content-Length']))
@@ -197,27 +197,23 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                         kvstore[keystr] = data["value"]
                         # Send key PUT to all other replicas
                         for replica in views_list:
-                            print("ENTER FOR LOOP\n")
+                            #print("ENTER FOR LOOP\n")
                             if (replica != saddr):
-                                print("REPLICA IS " + str(replica) + "\n")
-                                print("saddr is" + str(saddr) + "\n")
+                                #print("REPLICA IS " + str(replica) + "\n")
+                                #print("saddr is" + str(saddr) + "\n")
                                 try:
-                                    print("Broadcasting PUT value ", str(keystr), " to ", str(replica))
-                                    r = requests.put('http://' + replica + "/broadcast-key-put/" + keystr, timeout=3, allow_redirects=False, headers=self.headers, json={"value" : data["value"], "causal-metadata": data["causal-metadata"]})
+                                    print("    Broadcasting PUT value ", str(keystr), " to ", str(replica))
+                                    r = requests.put('http://' + replica + "/broadcast-key-put/" + keystr, timeout=2, allow_redirects=False, headers=self.headers, json={"value" : data["value"], "causal-metadata": data["causal-metadata"]})
                                 except:
-                                    print("The instance is down, broadcasting delete view to all up instances")
+                                    print("    The instance is down, broadcasting delete view to all up instances")
                                     views_list.remove(replica)
-                                    # self._set_headers(response_code=500)
-                                    # response = bytes(json.dumps({'message' : "Uh oh stinky", "causal-metadata":"test"}), 'utf-8')
-                                    # self.wfile.write(response)
-                                    # return
                                     for y in views_list:
-                                        print("Broadcasting DELETE downed instance ", replica, "to ", y)
+                                        print("    Broadcasting DELETE downed instance ", replica, "to ", y)
                                         if (y != saddr) and (y != replica):
                                             try:
-                                                r = requests.put('http://' + y + "/broadcast-view-delete", timeout=3, allow_redirects=False, headers=self.headers, json={"socket-address" : replica})
+                                                r = requests.put('http://' + y + "/broadcast-view-delete", timeout=2, allow_redirects=False, headers=self.headers, json={"socket-address" : replica})
                                             except:
-                                                print("instance is also down")
+                                                print("    instance is also down or busy")
                         self._set_headers(response_code=200)
                         response = bytes(json.dumps({'message' : "Updated successfully", 'replaced' :True, "causal-metadata":"test"}), 'utf-8')
                         self.wfile.write(response)
@@ -226,20 +222,20 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                         kvstore[keystr] = data["value"]
                         # Send key PUT to all other replicas
                         for replica in views_list:
-                            print("ENTER FOR LOOP\n")
+                            #print("ENTER FOR LOOP\n")
                             if (replica != saddr):
                                 try:
-                                    print("Broadcasting PUT value ", str(keystr), " to ", str(replica))
-                                    r = requests.put('http://' + replica + "/broadcast-key-put/" + keystr, timeout=3, allow_redirects=False, headers=self.headers, json={"value" : data["value"], "causal-metadata": data["causal-metadata"]})
+                                    print("    Broadcasting PUT value ", str(keystr), " to ", str(replica))
+                                    r = requests.put('http://' + replica + "/broadcast-key-put/" + keystr, timeout=2, allow_redirects=False, headers=self.headers, json={"value" : data["value"], "causal-metadata": data["causal-metadata"]})
                                 except:
-                                    print("The instance is down, broadcasting delete view to all up instances")
+                                    print("    The instance is down, broadcasting delete view to all up instances")
                                     for y in views_list:
-                                        print("Broadcasting DELETE downed instance ", replica, "to ", y)
+                                        print("    Broadcasting DELETE downed instance ", replica, "to ", y)
                                         if (y != saddr) and (y != replica):
                                             try:
-                                                r = requests.put('http://' + y + "/broadcast-view-delete", allow_redirects=False, headers=self.headers, json={"socket-address" : replica})
+                                                r = requests.put('http://' + y + "/broadcast-view-delete", timeout=2, allow_redirects=False, headers=self.headers, json={"socket-address" : replica})
                                             except:
-                                                print("instance is also down")
+                                                print("    instance is also down or busy")
                         self._set_headers(response_code=201)
                         response = bytes(json.dumps({'message' : "Added successfully", 'replaced' :False, "causal-metadata":"test"}), 'utf-8')
                         self.wfile.write(response)
@@ -251,11 +247,12 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(response)
             else:
                 self._set_headers(response_code=500)
+        
         return
     
     def do_DELETE(self):
-
-        print(self.client_address[0])
+        print("\n[+] recieved DELETE request from: " + str(self.client_address[0]) + " to path: " + str(self.path) + "\n")
+        #print(self.client_address[0])
         # print(views_list[2])
 
         view_list_str = []
@@ -263,38 +260,38 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
             view_list_str.append(str(x))
 
         if "/broadcast-view-delete" in str(self.path):
-            print("broadcasted delete: ")
+            #print("broadcasted delete: ")
             self.data_string = self.rfile.read(int(self.headers['Content-Length']))
             new_string = self.data_string.decode()
             new_string = new_string.replace('{', '')
             new_string = new_string.replace('}', '')
             new_string = new_string.replace('"', '')
             delete_replica = new_string.split(": ")[1]
-            print("View_list (before delete): ")
-            print(view_list_str)
+            #print("View_list (before delete): ")
+            #print(view_list_str)
 
             if delete_replica.strip() not in view_list_str:
-                print("view not in views_list")
+                print("    view not in views_list")
                 self._set_headers(response_code=200)
                 response = bytes(json.dumps({"bogus" : "doesnt matter", "message" : "done", "causal-metadata":"test"}), 'utf-8')
                 self.wfile.write(response)
                 return
 
             views_list.remove(delete_replica)
-            print("View_list (after delete): ")
-            print(views_list)
+            #print("View_list (after delete): ")
+            #print(views_list)
             
             self._set_headers(response_code=200)
             response = bytes(json.dumps({"bogus" : "doesnt matter", "message" : "done", "causal-metadata":"test"}), 'utf-8')
             self.wfile.write(response)
 
         elif "/broadcast-key-delete" in str(self.path):
-            print("broadcasted key delete: ")
+            #print("    broadcasted key delete: ")
             keystr = str(self.path).split("/broadcast-key-delete/",1)[1]
             self.data_string = self.rfile.read(int(self.headers['Content-Length']))
             data = json.loads(self.data_string)
             c_meta = data["causal-metadata"]
-            print("Causal Metadata:", str(c_meta))
+            print("    Causal Metadata:", str(c_meta))
             if(len(keystr) > 0 and len(keystr) < 50):
                 if keystr in kvstore:
                     del kvstore[keystr]
@@ -312,7 +309,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(response)
 
         elif "/key-value-store-view" in str(self.path): # self.client_address[0] = ip, view_list = ip + :port
-            print("view delete: ")
+            #print("view delete: ")
             self.data_string = self.rfile.read(int(self.headers['Content-Length']))
             data = json.loads(self.data_string)
             new_string = self.data_string.decode()
@@ -325,26 +322,26 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                 response = bytes(json.dumps({"error" : "Socket address does not exist in the view", "message" : "Error in DELETE", "causal-metadata":"test"}), 'utf-8')
                 self.wfile.write(response)
                 return
-            print("View_list (before delete): ", views_list)
+            #print("View_list (before delete): ", views_list)
             views_list.remove(delete_replica)
-            print("View_list: ", views_list)
+            #print("View_list: ", views_list)
 
             #send delete to all other replicas in the view lsit
             for x in views_list:
                 if x != saddr:
                     try:
-                        print( "TRY: deleting ", str(delete_replica), " at ", str(x) )
+                        print( "    TRY: deleting ", str(delete_replica), " at ", str(x) )
                         r = requests.delete('http://' + x + "/broadcast-view-delete", allow_redirects=False, headers=self.headers, json={"socket-address" : delete_replica})
                     except:
                         for y in views_list:
-                            print( "EXCEPT: broadcasting delete of ", str(x), " at ", str(y) )  
+                            print( "    EXCEPT: broadcasting delete of ", str(x), " at ", str(y) )  
                             if (self.client_address[0] + ":8085" != y) and (x != y):
                                 try:
                                     r = requests.delete('http://' + y + "/broadcast-view-delete" , allow_redirects = False, headers=self.headers, json={"socket-address" : delete_replica})
                                 except:
-                                    print("instance is also down")
+                                    print("    instance is also down or busy")
                 else:
-                    print("Cannot send request to self")
+                    print("    Cannot send request to self")
                 print(views_list)
                 
             self._set_headers(response_code=200)
@@ -360,18 +357,18 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                     for replica in views_list:
                         if (replica != saddr):
                             try:
-                                print("Broadcasting DELETE key value ", str(keystr), " to ", str(replica))
+                                print("    Broadcasting DELETE key value ", str(keystr), " to ", str(replica))
                                 r = requests.delete('http://' + replica + "/broadcast-key-delete/" + keystr, allow_redirects=False, headers=self.headers, json={"causal-metadata": "test"})
                             except:
-                                print("The instance is down, broadcasting delete view to all up instances")
+                                print("    The instance is down, broadcasting delete view to all up instances")
                                 views_list.remove(replica)
                                 for y in views_list:
-                                    print("Broadcasting DELETE downed instance ", replica, "to ", y)
+                                    print("    Broadcasting DELETE downed instance ", replica, "to ", y)
                                     if (y != saddr) and (y != replica):
                                         try:
                                             r = requests.delete('http://' + y + "/broadcast-view-delete", allow_redirects=False, headers=self.headers, json={"socket-address" : replica})
                                         except:
-                                            print("instance is also down")
+                                            print("    instance is also down or busy")
                     del kvstore[keystr]
                     self._set_headers(response_code=200)
                     response = bytes(json.dumps({"message" : "Deleted successfully", "causal-metadata":"test"}), 'utf-8')
@@ -391,6 +388,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
         else:
             #default 500 code to clean up loose ends
             self._set_headers(response_code=500)
+        
         return
 
 def run(server_class=http.server.HTTPServer, handler_class=requestHandler, addr='0.0.0.0', port=8085):
@@ -413,10 +411,10 @@ def run(server_class=http.server.HTTPServer, handler_class=requestHandler, addr=
                 for key in response_json:
                     kvstore[key] = response_json[key]
                 #kvstore = response_json
-                print("kvstore is as follows:")
-                print(kvstore)
-                print("kvstore type is:")
-                print(type(kvstore))
+                #print("kvstore is as follows:")
+                #print(kvstore)
+                #print("kvstore type is:")
+                #print(type(kvstore))
                 break
             except:
                 print("replica is not up yet")
