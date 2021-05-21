@@ -12,7 +12,7 @@ Private repository for CSE138 - Distributed Systems - Assignment 3
 * `https://stackabuse.com/serving-files-with-pythons-simplehttpserver-module/`
 * `https://docs.python.org/3/library/http.server.html`
 * Used to develop the httpserver that was reused from assignment 2. Provided an example to 
-* follow for our own server
+follow for our own server
 * `https://stackoverflow.com/questions/31371166/reading-json-from-simplehttpserver-post-data`
 * Used to determine proper syntax to send/receive json for the assignment 1 and 2 httpservers. 
 * `https://realpython.com/python-requests/#headers`
@@ -33,4 +33,3 @@ Private repository for CSE138 - Distributed Systems - Assignment 3
 
 ## Acknowledgements:
 * `Vinay Venkat (tutor):` Provided us with a basic overview of a potential way to use vector clocks within our environment during his tutoring session.
-* 
