@@ -13,6 +13,7 @@
 #https://docs.python.org/3/library/http.server.html
 #https://stackoverflow.com/questions/31371166/reading-json-from-simplehttpserver-post-data
 #https://realpython.com/python-requests/#headers
+#https://www.kite.com/python/answers/how-to-check-if-a-list-contains-a-substring-in-python
 
 import requests
 import sys
@@ -36,12 +37,13 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         print("\n[+] recieved GET request from: " + str(self.client_address[0]) + " to path: " + str(self.path) + "\n")
-        if "/update-vc-store" in str(self.path): #and any(self.client_address[0] in string for string in views_list):
+        if "/update-vc-store" in str(self.path): # and any(self.client_address[0] in string for string in views_list):
             print("vc to send back:")
             print(vc)
             self._set_headers(response_code=200)
             response = bytes(json.dumps(vc), 'utf-8')
             self.wfile.write(response)
+
         elif "/checkview/" in str(self.path): # and any(self.client_address[0] in string for string in views_list):
             self._set_headers(response_code=200)
             response = bytes(json.dumps(vc), 'utf-8')
@@ -107,18 +109,13 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                                 print(type(response_json))
                                 for key in response_json:
                                     vc[key] = max(vc[key],response_json[key])
-
-                                break
                             except:
                                 print("we have failed")
-                                break
                             try:
                                 r = requests.put('http://' + replica + "/broadcast-view-put", timeout=1, allow_redirects=False, json={"socket-address" : saddr})
                             except:
                                 print("replica ", replica, " in view is not yet live.")
-                    # get updated vc
-                    # get updated kv
-                #vc[x] = vc_temp[x]
+                            break
             
             print("BROADCAST PUT causal metadata")
             print(vc)
@@ -148,7 +145,6 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
         print("\n[+] recieved PUT request from: " + str(self.client_address[0]) + " to path: " + str(self.path) + "\n")
 
         if "/broadcast-view-put" in str(self.path): # and any(self.client_address[0] in string for string in views_list):
-            #print("broadcasted PUT: ")
             self.data_string = self.rfile.read(int(self.headers['Content-Length']))
             data = json.loads(self.data_string)
             new_string = self.data_string.decode()
@@ -156,8 +152,6 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
             new_string = new_string.replace('}', '')
             new_string = new_string.replace('"', '')
             new_string = new_string.split(": ")[1]
-            #print("View_list (before put): ")
-            #print(views_list)
             
             if new_string in views_list:
                 print("    view already in views_list")
@@ -179,9 +173,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
             print(vc)
             return
         
-        elif "/key-value-store-view" in str(self.path): # and any(self.client_address[0] in string for string in views_list): #and self.client_address[0] + ":8085" in views_list: # self.client_address[0] = ip, view_list = ip + :port
-            #in progress
-            #print("Content length" + self.headers['Content-Length'])
+        elif "/key-value-store-view" in str(self.path): # and any(self.client_address[0] in string for string in views_list):
             self.data_string = self.rfile.read(int(self.headers['Content-Length']))
             new_string = self.data_string.decode()
             new_string = new_string.replace('{', '')
@@ -190,8 +182,6 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
             print("    new instance to add into view: " + str(new_instance))
 
             if new_instance not in views_list:
-                # print("Views List (before PUT)", views_list)
-                # send PUT to all replicas
                 for x in views_list:
                     if (x != saddr):
                         try:
@@ -209,24 +199,19 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                                         print("    broadcast instance is down or busy")
 
                 views_list.append(new_instance)
-                print("Views List (after PUT)", views_list)
+                #print("Views List (after PUT)", views_list)
                 self._set_headers(response_code=201) 
                 response = bytes(json.dumps({'message' : "Replica added successfully to the view", "causal-metadata":"test"}), 'utf-8')
                 self.wfile.write(response)
             else:
-                #error
                 self._set_headers(response_code=404)
                 response = bytes(json.dumps({'error' : "Socket address already exists in the view", "message" : "Error in PUT", "causal-metadata":"test"}), 'utf-8')
                 self.wfile.write(response)
       
         elif "/broadcast-key-put/" in str(self.path): # and any(self.client_address[0] in string for string in views_list):
-            
-            # print("in broadcast key put \n")
             keystr = str(self.path).split("/broadcast-key-put/",1)[1]
-            # TODO: Update vector clock
             self.data_string = self.rfile.read(int(self.headers['Content-Length']))
             data = json.loads(self.data_string)
-
             try:
                 vc_temp = json.loads(data["causal-metadata"])
             except:
@@ -234,13 +219,8 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
             for x in vc_temp:
                 vc[x] = vc_temp[x]
             vc_str = json.dumps(vc_temp)
-            
-            print("BROADCAST PUT causal metadata")
-            print(vc)
 
             if(len(keystr) > 0 and len(keystr) < 50):
-                
-
                 if "value" not in data:
                     self._set_headers(response_code=400)
                     response = bytes(json.dumps({'error' : "Value is missing", 'message' : "Error in PUT", "causal-metadata":vc_str}), 'utf-8')
@@ -260,15 +240,12 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
 
         else:
             if "/key-value-store/" in str(self.path):
-                #check whats passed in, see if vector clock is <=
                 self.data_string = self.rfile.read(int(self.headers['Content-Length']))
                 data = json.loads(self.data_string)
-
                 try:
                     vc_temp = json.loads(data["causal-metadata"])
                 except:
-                    vc_temp = ""
-                    
+                    vc_temp = "" 
                 for x in vc_temp:
                     print("vc_temp[",x ,"] is ", str(vc_temp[x]))
                     print("VC[",x,"] ", " is ", str(vc[x]))
@@ -288,58 +265,35 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                                     print(type(response_json))
                                     for key in response_json:
                                         vc[key] = max(vc[key],response_json[key])
-
-                                    break
                                 except:
                                     print("we have failed")
-                                    break
                                 try:
                                     r = requests.put('http://' + replica + "/broadcast-view-put", timeout=1, allow_redirects=False, json={"socket-address" : saddr})
                                 except:
                                     print("replica ", replica, " in view is not yet live.")
-                        # get updated vc
-                        # get updated kv
-                    #vc[x] = vc_temp[x]
+                                break
                 vc_str = json.dumps(vc_temp)
-            
-                print("BROADCAST PUT causal metadata")
-                print(vc)
 
-               
-                
                 keystr = str(self.path).split("/key-value-store/",1)[1]
                 if(len(keystr) > 0 and len(keystr) < 50):
-                    #self.data_string = self.rfile.read(int(self.headers['Content-Length']))
-                    #data = json.loads(self.data_string)
-                    
                     try:
                         vc_temp = json.loads(data["causal-metadata"])
                     except:
                         vc_temp = ""
                     print("keyvaluestore vc_temp ")
                     print(vc_temp)
-                    
                     if "value" not in data:
                         self._set_headers(response_code=400)
                         response = bytes(json.dumps({'error' : "Value is missing", 'message' : "Error in PUT", "causal-metadata": vc_str}), 'utf-8')
                     elif keystr in kvstore:
                         kvstore[keystr] = data["value"]
-
                         # INCREMENT VECTOR CLOCK
                         vc[saddr] = vc[saddr] + 1
-                        vc_str = json.dumps(vc) 
-                        
-                        print("PUT CASE 1: contents of vc")
-                        print(vc)
-                        print("PUT CASE 1: contents of vc_str")
-                        print(vc_str)
+                        vc_str = json.dumps(vc)
 
                         # Send key PUT to all other replicas
                         for replica in views_list:
-                            #print("ENTER FOR LOOP\n")
                             if (replica != saddr):
-                                #print("REPLICA IS " + str(replica) + "\n")
-                                #print("saddr is" + str(saddr) + "\n")
                                 try:
                                     print("    Broadcasting PUT value ", str(keystr), " to ", str(replica))
                                     r = requests.put('http://' + replica + "/broadcast-key-put/" + keystr, timeout=1, allow_redirects=False, headers=self.headers, json={"value" : data["value"], "causal-metadata":  vc_str})
@@ -359,19 +313,11 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                         return
                     else:
                         kvstore[keystr] = data["value"]
-
                         # INCREMENT VECTOR CLOCK
                         vc[saddr] = vc[saddr] + 1
-                        vc_str = json.dumps(vc)  
-                        
-                        print("PUT CASE 2: contents of vc")
-                        print(vc)
-                        print("PUT CASE 2: contents of vc_str")
-                        print(vc_str)
-                        
+                        vc_str = json.dumps(vc)
                         # Send key PUT to all other replicas
                         for replica in views_list:
-                            #print("ENTER FOR LOOP\n")
                             if (replica != saddr):
                                 try:
                                     print("    Broadcasting PUT value ", str(keystr), " to ", str(replica))
@@ -401,48 +347,32 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
     
     def do_DELETE(self):
         print("\n[+] recieved DELETE request from: " + str(self.client_address[0]) + " to path: " + str(self.path) + "\n")
-        #print(self.client_address[0])
-        # print(views_list[2])
-
         view_list_str = []
         for x in views_list:
             view_list_str.append(str(x))
 
         if "/broadcast-view-delete" in str(self.path): # and any(self.client_address[0] in string for string in views_list):
-            #print("broadcasted delete: ")
             self.data_string = self.rfile.read(int(self.headers['Content-Length']))
             new_string = self.data_string.decode()
             new_string = new_string.replace('{', '')
             new_string = new_string.replace('}', '')
             new_string = new_string.replace('"', '')
             delete_replica = new_string.split(": ")[1]
-            #print("View_list (before delete): ")
-            #print(view_list_str)
-
             if delete_replica.strip() not in view_list_str:
                 print("    view not in views_list")
                 self._set_headers(response_code=200)
                 response = bytes(json.dumps({"bogus" : "doesnt matter", "message" : "done", "causal-metadata":"test"}), 'utf-8')
                 self.wfile.write(response)
                 return
-
             views_list.remove(delete_replica)
-            #print("View_list (after delete): ")
-            #print(views_list)
-            
             self._set_headers(response_code=200)
             response = bytes(json.dumps({"bogus" : "doesnt matter", "message" : "done", "causal-metadata":"test"}), 'utf-8')
             self.wfile.write(response)
 
         elif "/broadcast-key-delete" in str(self.path): # and any(self.client_address[0] in string for string in views_list):
-            #print("    broadcasted key delete: ")
             keystr = str(self.path).split("/broadcast-key-delete/",1)[1]
             self.data_string = self.rfile.read(int(self.headers['Content-Length']))
             data = json.loads(self.data_string)
-            c_meta = data["causal-metadata"]
-            print("    Causal Metadata:", str(c_meta))
-
-            # TODO: Update vector clock
             try:
                 vc_temp = json.loads(data["causal-metadata"])
             except:
@@ -450,9 +380,6 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
             for x in vc_temp:
                 vc[x] = vc_temp[x]
             vc_str = json.dumps(vc_temp)
-            
-            print("BROADCAST DELETE causal metadata")
-            print(vc)
 
             if(len(keystr) > 0 and len(keystr) < 50):
                 if keystr in kvstore:
@@ -470,8 +397,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                 response = bytes(json.dumps({'error' : "Key not specified", 'message' : "Error in DELETE", "causal-metadata":vc_str}), 'utf-8')
             self.wfile.write(response)
 
-        elif "/key-value-store-view" in str(self.path): # and any(self.client_address[0] in string for string in views_list): # self.client_address[0] = ip, view_list = ip + :port
-            #print("view delete: ")
+        elif "/key-value-store-view" in str(self.path): # and any(self.client_address[0] in string for string in views_list):
             self.data_string = self.rfile.read(int(self.headers['Content-Length']))
             data = json.loads(self.data_string)
             new_string = self.data_string.decode()
@@ -484,10 +410,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                 response = bytes(json.dumps({"error" : "Socket address does not exist in the view", "message" : "Error in DELETE", "causal-metadata":"test"}), 'utf-8')
                 self.wfile.write(response)
                 return
-            #print("View_list (before delete): ", views_list)
             views_list.remove(delete_replica)
-            #print("View_list: ", views_list)
-
             #send delete to all other replicas in the view lsit
             for x in views_list:
                 if x != saddr:
@@ -504,7 +427,7 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                                     print("    instance is also down or busy")
                 else:
                     print("    Cannot send request to self")
-                print(views_list)
+                #print(views_list)
                 
             self._set_headers(response_code=200)
             self.end_headers()
@@ -524,7 +447,6 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                 print("vc_temp[",x ,"] is ", str(vc_temp[x]))
                 print("VC[",x,"] ", " is ", str(vc[x]))
                 if vc_temp[x] > vc[x]:
-                    print("element is bigger kekw")
                     for replica in views_list:
                         if replica != saddr:
                             try:
@@ -539,26 +461,19 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                                 print(type(response_json))
                                 for key in response_json:
                                     vc[key] = max(vc[key],response_json[key])
-
-                                break
                             except:
                                 print("we have failed")
-                                break
                             try:
                                 r = requests.put('http://' + replica + "/broadcast-view-put", timeout=1, allow_redirects=False, json={"socket-address" : saddr})
                             except:
                                 print("replica ", replica, " in view is not yet live.")
-                    # get updated vc
-                    # get updated kv
-                #vc[x] = vc_temp[x]
-            
+                            break
+
             if(len(keystr) > 0 and len(keystr) < 50):
                 if keystr in kvstore:
-
                     # INCREMENT VECTOR CLOCK
                     vc[saddr] = vc[saddr] + 1
                     vc_str = json.dumps(vc) 
-
                     # Send key DELETE to all other replicas
                     for replica in views_list:
                         if (replica != saddr):
@@ -578,7 +493,6 @@ class requestHandler(http.server.BaseHTTPRequestHandler):
                     del kvstore[keystr]
                     self._set_headers(response_code=200)
                     response = bytes(json.dumps({"message" : "Deleted successfully", "causal-metadata":vc_str}), 'utf-8')
-                    
                     
                 else:
                     vc_str = json.dumps(vc) 
@@ -621,11 +535,6 @@ def run(server_class=http.server.HTTPServer, handler_class=requestHandler, addr=
                 print(type(response_json))
                 for key in response_json:
                     kvstore[key] = response_json[key]
-                #kvstore = response_json
-                #print("kvstore is as follows:")
-                #print(kvstore)
-                #print("kvstore type is:")
-                #print(type(kvstore))
                 break
             except:
                 print("replica is not up yet")
@@ -644,11 +553,6 @@ def run(server_class=http.server.HTTPServer, handler_class=requestHandler, addr=
             except:
                 print("replica is not up yet")
         print("Vector clock of ", view, " is ", vc[view])
-    # {saddr1:0, saddr2:0, saddr3:0}
-    # vc = {}
-    # for view in views_list:
-        # vc{view} = 0
-
 
     print(f"Starting HTTP server on {addr}:{port}")
     try:
@@ -683,6 +587,4 @@ if __name__ == '__main__':
         #call the run function with custom port
         run(port=int(argv[1]))
     else:
-        #call the run function with default port 8085
-        #addr_s, saddr_port = saddr.split(":")
         run()
