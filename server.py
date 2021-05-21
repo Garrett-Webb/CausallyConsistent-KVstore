@@ -8,7 +8,7 @@
 
 #CSE138 Kuper Spring 2021
 
-#acknowledgements
+#Citations
 #https://stackabuse.com/serving-files-with-pythons-simplehttpserver-module/
 #https://docs.python.org/3/library/http.server.html
 #https://stackoverflow.com/questions/31371166/reading-json-from-simplehttpserver-post-data
