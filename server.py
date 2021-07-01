@@ -1,12 +1,8 @@
 # server.py
 
-# Assignment 2
-# CruzIDs
-# Garrett Webb: gswebb
-# Kai Hsieh: kahsieh
-# Rahul Arora: raarora
-
-#CSE138 Kuper Spring 2021
+# Garrett Webb
+# Kai Hsieh
+# Rahul Arora
 
 #Citations
 #https://stackabuse.com/serving-files-with-pythons-simplehttpserver-module/

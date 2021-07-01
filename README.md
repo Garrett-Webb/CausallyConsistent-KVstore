@@ -1,10 +1,9 @@
-# CSE138_Assignment3
-Private repository for CSE138 - Distributed Systems - Assignment 3
+# Replicated KVstore with Causal Consistency
+Done as part of a class project
 
-## CruzIDs
-* `gswebb`
-* `kahsieh`
-* `raarora`
+* `Garrett Webb`
+* `Kai Hsieh`
+* `Rahul Arora`
 
 ## Citations:
 * `https://stackoverflow.com/questions/40950791/remove-quotes-from-string-in-python/40950987`
@@ -30,6 +29,3 @@ follow for our own server
 
 * `Kai:` Setup the testing/debugging routine and performed most of the testings. Started the initial key-value-store-view operation which built the base structure for rest of the request handling.
 
-
-## Acknowledgements:
-* `Vinay Venkat (tutor):` Provided us with a basic overview of a potential way to use vector clocks within our environment during his tutoring session.
